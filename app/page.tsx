@@ -1,103 +1,239 @@
-import Image from "next/image";
+'use client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function Home() {
+export default function Countdown() {
+  // Eingaben für Gesamtzeit
+  const [hours, setHours] = useState(0);
+  const [minutes, setMinutes] = useState(30);
+  const [seconds, setSeconds] = useState(0);
+
+  // Eingabe für Intervalldauer (in Minuten)
+  const [intervalMinutes, setIntervalMinutes] = useState(3);
+
+  // Timer State
+  const [totalTime, setTotalTime] = useState(1800); // 30min default
+  const [time, setTime] = useState(1800);
+  const [isRunning, setIsRunning] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // AudioRefs
+  const beepRef = useRef<HTMLAudioElement>(null); // Intervall
+  const completeRef = useRef<HTMLAudioElement>(null); // Ende
+
+  // Kreis-Daten
+  const radius = 80;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (time / totalTime) * circumference;
+
+  // Timer Effekt
+  useEffect(() => {
+    if (isRunning && time > 0) {
+      intervalRef.current = setInterval(() => {
+        setTime((prev) => {
+          const next = prev - 1;
+          if (next >= 0) {
+            const elapsed = totalTime - next;
+            const intervalSeconds = intervalMinutes * 60;
+
+            // Intervall-Ton
+            if (time !== 0 && elapsed > 0 && elapsed % intervalSeconds === 0) {
+              beepRef.current?.play().catch(() => {});
+            }
+          }
+          return next;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRunning, intervalMinutes, totalTime]);
+
+  // Ende → kompletter Ton
+  useEffect(() => {
+    if (time === 0 && intervalRef.current) {
+      clearInterval(intervalRef.current);
+      setIsRunning(false);
+      completeRef.current?.play().catch(() => {});
+    }
+  }, [time]);
+
+  // Zeit aus Input übernehmen
+  const applyTime = () => {
+    const newTotal = hours * 3600 + minutes * 60 + seconds;
+    setTotalTime(newTotal > 0 ? newTotal : 1);
+    setTime(newTotal > 0 ? newTotal : 1);
+  };
+
+  const handleStart = () => {
+    if (time > 0) {
+      // Browser-Audio entsperren
+      if (beepRef.current) {
+        beepRef.current
+          .play()
+          .then(() => {
+            beepRef.current?.pause();
+            if (beepRef.current) {
+              beepRef.current.currentTime = 0;
+            }
+          })
+          .catch(() => {});
+      }
+      if (completeRef.current) {
+        completeRef.current
+          .play()
+          .then(() => {
+            completeRef.current?.pause();
+            if (completeRef.current) {
+              completeRef.current.currentTime = 0;
+            }
+          })
+          .catch(() => {});
+      }
+
+      setIsRunning(true);
+    }
+  };
+
+  const handleStop = () => {
+    setIsRunning(false);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
+
+  const handleReset = () => {
+    setIsRunning(false);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    applyTime();
+  };
+
+  // Format hh:mm:ss
+  const formatTime = (t: number) => {
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = t % 60;
+    return `${h.toString().padStart(2, '0')}:${m
+      .toString()
+      .padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className='flex flex-col items-center gap-6 p-8'>
+      {/* Audio */}
+      <audio ref={beepRef} src='/beep.mp3' preload='auto' />
+      <audio ref={completeRef} src='/beep-complete.mp3' preload='auto' />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      {/* Kreis */}
+      <svg width={200} height={200}>
+        <circle
+          stroke='#e5e7eb'
+          fill='transparent'
+          strokeWidth='10'
+          r={radius}
+          cx={100}
+          cy={100}
+        />
+        <circle
+          stroke='#3b82f6'
+          fill='transparent'
+          strokeWidth='10'
+          r={radius}
+          cx={100}
+          cy={100}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference - progress}
+          strokeLinecap='round'
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
+        />
+        <text
+          x='50%'
+          y='50%'
+          textAnchor='middle'
+          dy='.3em'
+          fontSize='22'
+          fill='#111827'
+        >
+          {formatTime(time)}
+        </text>
+      </svg>
+
+      {/* Eingaben */}
+      <div className='flex flex-col gap-2 items-center'>
+        <div className='flex gap-2 items-center'>
+          <div className='flex flex-col'>
+            <Label>Stunden</Label>
+            <Input
+              type='number'
+              min='0'
+              value={hours}
+              onChange={(e) => setHours(Number(e.target.value))}
+              className='w-16 border rounded p-1 text-center'
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+          <span>:</span>
+          <div className='flex flex-col'>
+            <Label>Minuten</Label>
+            <Input
+              type='number'
+              min='0'
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value))}
+              className='w-16 border rounded p-1 text-center'
+            />
+          </div>
+          <span>:</span>
+          <div className='flex flex-col'>
+            <Label>Sekunden</Label>
+            <Input
+              type='number'
+              min='0'
+              value={seconds}
+              onChange={(e) => setSeconds(Number(e.target.value))}
+              className='w-16 border rounded p-1 text-center'
+            />
+          </div>
+          <Button
+            onClick={applyTime}
+            className='ml-2 px-3 py-1 bg-blue-500 text-white rounded'
           >
-            Read our docs
-          </a>
+            Set
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div className='flex gap-2 items-center'>
+          <span>Intervall (Minuten):</span>
+          <Input
+            type='number'
+            min='1'
+            value={intervalMinutes}
+            onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+            className='w-16 border rounded p-1 text-center'
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        </div>
+      </div>
+
+      {/* Steuerung */}
+      <div className='flex gap-4'>
+        <Button
+          onClick={handleStart}
+          className='px-4 py-2 bg-green-500 text-white rounded-lg'
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Start
+        </Button>
+        <Button
+          onClick={handleStop}
+          className='px-4 py-2 bg-yellow-500 text-white rounded-lg'
         >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Stop
+        </Button>
+        <Button
+          onClick={handleReset}
+          className='px-4 py-2 bg-red-500 text-white rounded-lg'
+        >
+          Reset
+        </Button>
+      </div>
     </div>
   );
 }
