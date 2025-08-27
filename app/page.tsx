@@ -50,7 +50,7 @@ export default function Countdown() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning, intervalMinutes, totalTime]);
+  }, [isRunning, intervalMinutes, totalTime, time]);
 
   // Ende → kompletter Ton
   useEffect(() => {
